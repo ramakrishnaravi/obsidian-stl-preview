@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      # Matches bare semver tags like 1.2.3 produced by scripts/version.mjs
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        # Pinned to v4.2.2 commit SHA to prevent supply-chain attacks.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Node 22
+        # Pinned to v4.1.0 commit SHA.
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Create GitHub Release
+        # Pinned to v2.2.1 commit SHA.
+        uses: softprops/action-gh-release@c062e08bd532815e2082a7e09ce9571a6d5763ca
+        with:
+          files: |
+            main.js
+            manifest.json
+            styles.css
+            stl-viewer.html
+          body: |
+            ## Install
+
+            ### Manual installation
+            1. Download `main.js`, `manifest.json`, and `styles.css` from this release.
+            2. Create a folder `<vault>/.obsidian/plugins/obsidian-stl-preview/`.
+            3. Copy the three files into that folder.
+            4. Open Obsidian → Settings → Community plugins → enable **STL Preview**.
+
+            ### BRAT (beta tester)
+            Add `<owner>/obsidian-stl-preview` in the BRAT plugin settings.
+
+            ---
+            `stl-viewer.html` is a standalone browser-based STL viewer (no Obsidian required).

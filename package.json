@@ -1,0 +1,20 @@
+{
+  "name": "obsidian-stl-preview",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build":   "node esbuild.config.mjs",
+    "dev":     "node esbuild.config.mjs --watch",
+    "version": "node scripts/version.mjs"
+  },
+  "devDependencies": {
+    "@types/node":     "^22.0.0",
+    "@types/three":    "^0.172.0",
+    "esbuild":         "^0.25.0",
+    "obsidian":        "^1.4.0",
+    "three":           "^0.172.0",
+    "typescript":      "^5.7.0"
+  }
+}

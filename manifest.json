@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-stl-preview",
+  "name": "STL Preview",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Render .stl files in an interactive 3D viewer using Three.js.",
+  "author": "ylambda",
+  "authorUrl": "https://github.com/ylambda",
+  "isDesktopOnly": true
+}
