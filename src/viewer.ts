@@ -19,6 +19,7 @@ class STLViewer {
   private camera:    THREE.PerspectiveCamera;
   private controls:  OrbitControls;
   private lights:    THREE.Light[] = [];
+  private mesh:      THREE.Mesh | null = null;
 
   constructor(private container: HTMLElement) {
     // Scene
@@ -112,6 +113,7 @@ class STLViewer {
       }),
     );
     this.scene.add(mesh);
+    this.mesh = mesh;
 
     // Frame camera
     this.camera.near = maxDim * 0.001;
@@ -127,6 +129,13 @@ class STLViewer {
       : geometry.attributes.position.count / 3;
 
     setOverlay(filename, size, triangleCount);
+  }
+
+  toggleWireframe(): boolean {
+    if (!this.mesh) return false;
+    const mat = this.mesh.material as THREE.MeshPhongMaterial;
+    mat.wireframe = !mat.wireframe;
+    return mat.wireframe;
   }
 
   async loadUrl(url: string): Promise<void> {
@@ -158,10 +167,30 @@ function setStatus(msg: string, isError = false): void {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('viewer')    as HTMLDivElement;
-  const dropZone  = document.getElementById('drop-zone') as HTMLDivElement;
+  const container   = document.getElementById('viewer')       as HTMLDivElement;
+  const dropZone    = document.getElementById('drop-zone')    as HTMLDivElement;
+  const toolbar     = document.getElementById('toolbar')      as HTMLDivElement;
+  const btnWireframe = document.getElementById('btn-wireframe') as HTMLButtonElement;
 
   const viewer = new STLViewer(container);
+
+  // Show toolbar and wire up controls once a model is loaded.
+  function onModelLoaded() {
+    toolbar.style.display = 'flex';
+  }
+
+  btnWireframe.addEventListener('click', () => {
+    const active = viewer.toggleWireframe();
+    btnWireframe.classList.toggle('active', active);
+  });
+
+  // Keyboard shortcut: W = wireframe
+  window.addEventListener('keydown', e => {
+    if (e.key === 'w' || e.key === 'W') {
+      const active = viewer.toggleWireframe();
+      btnWireframe.classList.toggle('active', active);
+    }
+  });
 
   // ── ?src= parameter: fetch STL from URL ──────────────────────────────────
   const srcParam = new URLSearchParams(location.search).get('src');
@@ -172,6 +201,7 @@ window.addEventListener('DOMContentLoaded', () => {
       .then(() => {
         const statusEl = document.getElementById('status');
         if (statusEl) statusEl.style.display = 'none';
+        onModelLoaded();
       })
       .catch(e => setStatus(`Error: ${e.message}`, true));
   }
@@ -185,7 +215,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const file = inp.files?.[0];
       if (!file) return;
       dropZone.style.display = 'none';
-      file.arrayBuffer().then(buf => viewer.loadBuffer(buf, file.name));
+      file.arrayBuffer().then(buf => { viewer.loadBuffer(buf, file.name); onModelLoaded(); });
     };
     inp.click();
   });
@@ -197,6 +227,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const file = e.dataTransfer?.files[0];
     if (!file || !file.name.toLowerCase().endsWith('.stl')) return;
     dropZone.style.display = 'none';
-    file.arrayBuffer().then(buf => viewer.loadBuffer(buf, file.name));
+    file.arrayBuffer().then(buf => { viewer.loadBuffer(buf, file.name); onModelLoaded(); });
   });
 });

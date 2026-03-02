@@ -7,6 +7,9 @@ While STL is a mesh format (not parametric CAD), this plugin focuses on document
 Render `.stl` 3D model files directly inside Obsidian using an interactive Three.js viewer.
 Also ships a **standalone browser viewer** deployable to GitHub Pages — no Obsidian required.
 
+
+![STL preview](docs/images/stl_preview.gif)
+
 ---
 
 ## Features
