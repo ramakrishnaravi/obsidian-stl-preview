@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "minAppVersion": "1.4.0",
   "description": "Render .stl files in an interactive 3D viewer using Three.js.",
-  "author": "ylambda",
-  "authorUrl": "https://github.com/ylambda",
+  "author": "Ramakrishna Ravi",
+  "authorUrl": "https://y-lambda.com/",
   "isDesktopOnly": true
 }
