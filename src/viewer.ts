@@ -3,13 +3,25 @@
  * Compiled and inlined into stl-viewer.html by the build script.
  *
  * Supports:
- *   ?src=<relative-or-absolute-url>   auto-loads on open (served context)
- *   drag-and-drop / click-to-browse   always works, even from file://
+ *   ?src=<url>               auto-loads on open; GitHub blob URLs are auto-converted
+ *   drag-and-drop            drop anywhere on the page
+ *   click-to-browse          click the drop zone
  */
 
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+// ── URL normalisation ─────────────────────────────────────────────────────────
+// Converts GitHub blob page URLs to raw content URLs so fetch() gets binary data.
+// https://github.com/owner/repo/blob/REF/path  →  https://raw.githubusercontent.com/owner/repo/REF/path
+
+function normaliseUrl(url: string): string {
+  return url.replace(
+    /^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\//,
+    'https://raw.githubusercontent.com/$1/',
+  );
+}
 
 // ── Viewer class ─────────────────────────────────────────────────────────────
 
@@ -139,10 +151,21 @@ class STLViewer {
   }
 
   async loadUrl(url: string): Promise<void> {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
+    const raw = normaliseUrl(url);
+    let resp: Response;
+    try {
+      resp = await fetch(raw);
+    } catch {
+      // fetch() throws TypeError on network/CORS errors — give a useful hint.
+      throw new Error(
+        raw !== url
+          ? `Failed to fetch (converted to raw URL: ${raw})`
+          : `Failed to fetch — the server may not allow cross-origin requests`,
+      );
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${raw}`);
     const buf = await resp.arrayBuffer();
-    this.loadBuffer(buf, url.split('/').pop() ?? url);
+    this.loadBuffer(buf, raw.split('/').pop() ?? raw);
   }
 }
 
@@ -160,42 +183,46 @@ function setStatus(msg: string, isError = false): void {
   const el = document.getElementById('status');
   if (!el) return;
   el.textContent  = msg;
-  (el as HTMLElement).style.color  = isError ? '#f87171' : '#9ca3af';
+  (el as HTMLElement).style.color   = isError ? '#f87171' : '#9ca3af';
   (el as HTMLElement).style.display = 'block';
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', () => {
-  const container   = document.getElementById('viewer')       as HTMLDivElement;
-  const dropZone    = document.getElementById('drop-zone')    as HTMLDivElement;
-  const toolbar     = document.getElementById('toolbar')      as HTMLDivElement;
+  const container    = document.getElementById('viewer')        as HTMLDivElement;
+  const dropZone     = document.getElementById('drop-zone')     as HTMLDivElement;
+  const toolbar      = document.getElementById('toolbar')       as HTMLDivElement;
   const btnWireframe = document.getElementById('btn-wireframe') as HTMLButtonElement;
 
-  const viewer = new STLViewer(container);
-
-  // Show toolbar and wire up controls once a model is loaded.
-  function onModelLoaded() {
-    toolbar.style.display = 'flex';
+  // Initialise viewer — catch WebGL / context-creation errors immediately so the
+  // rest of the page (drop zone, error messages) still works if 3-D fails.
+  let viewer: STLViewer;
+  try {
+    viewer = new STLViewer(container);
+  } catch (e: any) {
+    setStatus(`3D viewer failed to initialise: ${e?.message ?? e}`, true);
+    return;
   }
 
-  btnWireframe.addEventListener('click', () => {
-    const active = viewer.toggleWireframe();
-    btnWireframe.classList.toggle('active', active);
-  });
+  function onModelLoaded() {
+    dropZone.style.display = 'none';
+    toolbar.style.display  = 'flex';
+  }
 
-  // Keyboard shortcut: W = wireframe
+  // ── Wireframe button + keyboard shortcut ─────────────────────────────────
+  btnWireframe.addEventListener('click', () => {
+    btnWireframe.classList.toggle('active', viewer.toggleWireframe());
+  });
   window.addEventListener('keydown', e => {
     if (e.key === 'w' || e.key === 'W') {
-      const active = viewer.toggleWireframe();
-      btnWireframe.classList.toggle('active', active);
+      btnWireframe.classList.toggle('active', viewer.toggleWireframe());
     }
   });
 
   // ── ?src= parameter: fetch STL from URL ──────────────────────────────────
   const srcParam = new URLSearchParams(location.search).get('src');
   if (srcParam) {
-    dropZone.style.display = 'none';
     setStatus('Loading…');
     viewer.loadUrl(srcParam)
       .then(() => {
@@ -208,25 +235,24 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ── Click-to-browse ───────────────────────────────────────────────────────
   dropZone.addEventListener('click', () => {
-    const inp     = document.createElement('input');
-    inp.type      = 'file';
-    inp.accept    = '.stl';
-    inp.onchange  = () => {
+    const inp    = document.createElement('input');
+    inp.type     = 'file';
+    inp.accept   = '.stl';
+    inp.onchange = () => {
       const file = inp.files?.[0];
       if (!file) return;
-      dropZone.style.display = 'none';
       file.arrayBuffer().then(buf => { viewer.loadBuffer(buf, file.name); onModelLoaded(); });
     };
     inp.click();
   });
 
-  // ── Drag-and-drop onto the whole container ────────────────────────────────
-  container.addEventListener('dragover', e => e.preventDefault());
-  container.addEventListener('drop', e => {
+  // ── Drag-and-drop — listen at document level so the Three.js canvas
+  //    never blocks drops regardless of stacking / pointer-event state.
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
     e.preventDefault();
     const file = e.dataTransfer?.files[0];
     if (!file || !file.name.toLowerCase().endsWith('.stl')) return;
-    dropZone.style.display = 'none';
     file.arrayBuffer().then(buf => { viewer.loadBuffer(buf, file.name); onModelLoaded(); });
   });
 });
