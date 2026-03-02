@@ -10,6 +10,9 @@ Also ships a **standalone browser viewer** deployable to GitHub Pages — no Obs
 
 ![STL preview](docs/images/stl_preview.gif)
 
+One can also preview wireframe of the STL file.
+![Wireframe preview](docs/images/wireframe.png)
+
 ---
 
 ## Features
